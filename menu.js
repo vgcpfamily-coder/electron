@@ -1,4 +1,5 @@
 const { Menu } = require('electron');
+const { setTheme, getTheme } = require('./theme');
 
 function createMenu() {
   const template = [
@@ -40,6 +41,32 @@ function createMenu() {
         }
       ]
     },
+
+    // NOVO MENU DE TEMA
+    {
+      label: 'Tema',
+      submenu: [
+        {
+          label: 'Sistema',
+          type: 'radio',
+          checked: getTheme() === 'system',
+          click: () => setTheme('system')
+        },
+        {
+          label: 'Claro',
+          type: 'radio',
+          checked: getTheme() === 'light',
+          click: () => setTheme('light')
+        },
+        {
+          label: 'Escuro',
+          type: 'radio',
+          checked: getTheme() === 'dark',
+          click: () => setTheme('dark')
+        }
+      ]
+    },
+
     {
       label: 'DEV',
       submenu: [
