@@ -1,0 +1,25 @@
+
+### Recommended steps
+
+1. Install `electron-forge`:
+   ```bash
+   npm install --save-dev @electron-forge/cli
+   ```
+
+2. Then install dependencies:
+   ```bash
+   npm install
+   ```
+
+3. Start again:
+   ```bash
+   npm start
+   ```
+
+### Alternative
+
+If you want to run it once without installing globally:
+```bash
+npx electron-forge start
+```
+
