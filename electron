@@ -1,0 +1,5 @@
+#!/bin/bash
+cd "/home/g4b3r/electron/electron"
+export URL=$1
+echo $URL
+npm start
