@@ -10,6 +10,11 @@ if (!gotTheLock) {
   app.quit();
 } else {
   app.whenReady().then(async () => {
+    const locale = app.getLocale(); // Pega o idioma do SO
+    console.log('🌍 Idioma do sistema:', locale);
+    console.log('🔷 Processo Principal PID:', process.pid);
+    console.log('✅ Node.js versão:', process.versions.node);
+
     createMenu();
     registerShortcuts();
 
@@ -17,13 +22,14 @@ if (!gotTheLock) {
       getUrl(process.argv) ||
       'https://www.youtube.com';
 
-    await createWindow(url);
+    await createWindow(url, locale);
   });
 
   app.on('second-instance', async (_, commandLine) => {
+    const locale = app.getLocale();
     const url = getUrl(commandLine);
     if (url) {
-      await createWindow(url);
+      await createWindow(url, locale);
     }
   });
 
