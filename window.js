@@ -1,6 +1,6 @@
 const { BrowserWindow, session } = require('electron');
 const path = require('node:path');
-const { setupAdblocker } = require('./adblocker');
+const { setupAdblocker, injectAdblockerCosmetics } = require('./adblocker');
 const { injectDarkMode } = require('./theme');
 
 const PARTITION = 'persist:main';
@@ -24,6 +24,10 @@ async function createWindow(url, locale = 'pt-BR') {
       partition: PARTITION,
     },
   });
+
+  // Aumentar limite de listeners para evitar warning
+  win.webContents.setMaxListeners(20);
+
   // Habilitar corretor ortográfico
   win.webContents.session.setSpellCheckerLanguages(['pt-BR']);
 
@@ -36,6 +40,9 @@ async function createWindow(url, locale = 'pt-BR') {
 
   win.webContents.on('did-finish-load', () => {
     console.log('🎬 Motor de Render:', navigator.userAgent);
+
+    // Injetar estilo de ocultação de anúncios e detecção de adblock
+    injectAdblockerCosmetics(win.webContents);
 
     // Injetar tema escuro
     injectDarkMode(win.webContents);
@@ -52,10 +59,12 @@ async function createWindow(url, locale = 'pt-BR') {
       }
       
       window.googleTranslateElementInit = function() {
-        new google.translate.TranslateElement(
-          {pageLanguage: 'en', includedLanguages: 'pt,es,fr,de,it,ja,zh-CN,ru', layout: google.translate.TranslateElement.InlineLayout.SIMPLE},
-          'google_translate_element'
-        );
+        if (window.google && window.google.translate && window.google.translate.TranslateElement) {
+          new google.translate.TranslateElement(
+            {pageLanguage: 'en', includedLanguages: 'pt,es,fr,de,it,ja,zh-CN,ru', layout: google.translate.TranslateElement.InlineLayout.SIMPLE},
+            'google_translate_element'
+          );
+        }
       };
       
       // Criar elemento para o tradutor
@@ -66,7 +75,9 @@ async function createWindow(url, locale = 'pt-BR') {
         document.body.appendChild(div);
       }
     })();
-  `);
+  `).catch(err => {
+      console.warn('Erro ao injetar Google Translate:', err);
+    });
   });
   windows.push(win);
   return win;

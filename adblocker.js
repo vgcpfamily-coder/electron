@@ -4,85 +4,229 @@ const fs = require('fs');
 const path = require('path');
 const { app, ipcMain } = require('electron');
 
-// Aggressive public YouTube adblock filter lists
-const AD_FILTER_LISTS = [
-  'https://easylist.to/easylist/easylist.txt',
-  'https://easylist.to/easylist/easyprivacy.txt',
-  'https://raw.githubusercontent.com/uBlockOrigin/uAssets/master/filters/filters.txt',
-  'https://raw.githubusercontent.com/uBlockOrigin/uAssets/master/filters/badware.txt',
-  'https://raw.githubusercontent.com/uBlockOrigin/uAssets/master/filters/privacy.txt',
-  'https://raw.githubusercontent.com/uBlockOrigin/uAssets/master/filters/unbreak.txt',
-  'https://raw.githubusercontent.com/uBlockOrigin/uAssets/master/filters/annoyances.txt',
-  'https://raw.githubusercontent.com/uBlockOrigin/uAssets/master/filters/resource-abuse.txt',
-  'https://raw.githubusercontent.com/uBlockOrigin/uAssets/master/filters/quick-fixes.txt',
-  'https://raw.githubusercontent.com/brave/adblock-lists/master/brave-unbreak.txt',
-  'https://raw.githubusercontent.com/brave/adblock-lists/master/brave-specific.txt',
-];
-
-const CACHE_PATH = path.join(app.getPath('userData'), 'adblock-engine.bin');
-const LISTS_HASH_PATH = path.join(app.getPath('userData'), 'adblock-lists-hash.txt');
-
-// Track the current blocker instance to avoid IPC conflicts
-let currentBlocker = null;
-
-/**
- * Sets up the Ghostery adblocker for the given Electron session.
- * Uses aggressive filter lists and caches them for fast startup.
- */
-async function setupAdblocker(session) {
-  try {
-    // We already have a blocker running, no need to re-initialize
-    if (currentBlocker) {
-      console.log('Adblocker: Already initialized.');
-      return currentBlocker;
-    }
-
-    // Explicitly unregister any existing handlers before starting to avoid "Attempted to register a second handler" error
-    // These are the names used by @ghostery/adblocker-electron
-    ipcMain.removeHandler('@ghostery/adblocker/inject-cosmetic-filters');
-    ipcMain.removeHandler('@ghostery/adblocker/is-mutation-observer-enabled');
-
-    let blocker;
-    const currentHash = Buffer.from(AD_FILTER_LISTS.join(',')).toString('base64');
-    let cacheValid = false;
-
-    if (fs.existsSync(CACHE_PATH) && fs.existsSync(LISTS_HASH_PATH)) {
-      const savedHash = await fs.promises.readFile(LISTS_HASH_PATH, 'utf8');
-      if (savedHash === currentHash) {
-        cacheValid = true;
-      }
-    }
-
-    // We try to load from cache for speed
-    if (cacheValid) {
-      console.log('Adblocker: Loading from cache...');
-      const buffer = await fs.promises.readFile(CACHE_PATH);
-      blocker = ElectronBlocker.deserialize(buffer);
-    } else {
-      console.log('Adblocker: Loading from lists (first time or lists updated)...');
-      blocker = await ElectronBlocker.fromLists(fetch, AD_FILTER_LISTS);
-      const buffer = Buffer.from(blocker.serialize());
-      await fs.promises.writeFile(CACHE_PATH, buffer);
-      await fs.promises.writeFile(LISTS_HASH_PATH, currentHash);
-      console.log('Adblocker: Engine cached.');
-    }
-
-    blocker.enableBlockingInSession(session);
-    currentBlocker = blocker;
-    console.log('Adblocker successfully enabled with aggressive lists.');
-    return blocker;
-  } catch (error) {
-    console.error('Adblocker: Failed to setup:', error);
-    // Fallback if anything goes wrong
-    try {
-      const fallbackBlocker = await ElectronBlocker.fromPrebuiltAdsAndTracking(fetch);
-      fallbackBlocker.enableBlockingInSession(session);
-      currentBlocker = fallbackBlocker;
-      return fallbackBlocker;
-    } catch (fallbackError) {
-      console.error('Adblocker: Fallback failed:', fallbackError);
-    }
+const adblockCosmeticCSS = `
+  /* YouTube ad and ad-block detection overlay hiding */
+  .video-ads,
+  .ytp-ad-module,
+  .ytp-ad-player-overlay,
+  .ytp-ad-overlay-slot,
+  .ytp-ad-text-overlay,
+  .ytp-ad-preview,
+  .ytp-ad-player-overlay-instream-info,
+  .ytp-ad-button,
+  .ytp-ad-overlay-close-button,
+  .ytp-ad-overlay-container,
+  .ytp-ad-progress-list,
+  .ytp-paid-content-badge,
+  .ytp-ce-element,
+  #player-ads,
+  .ytp-ad-top-banner-slot,
+  .ytp-ad-endcap,
+  .adblock-message,
+  .adblock-overlay,
+  .adblocker-detection,
+  .ytp-error-content,
+  .ytp-adblock-message,
+  .ytp-adblock-overlay,
+  tp-yt-paper-dialog.ytd-popup-container>:last-child,
+  tp-yt-iron-overlay-backdrop[opened],
+  tp-yt-iron-overlay-backdrop.opened,
+  tp-yt-iron-overlay-backdrop,
+  [id*='adblock'],
+  [class*='adblock'],
+  [class*='AdBlock'],
+  [class*='abp'] {
+    display: none !important;
+    visibility: hidden !important;
+    opacity: 0 !important;
+    pointer-events: none !important;
   }
+`;
+
+async function setupAdblocker(session) {
+  // Inicializa o bloqueador com listas de anúncios e rastreamento pré-construídas
+  const blocker = await ElectronBlocker.fromPrebuiltAdsAndTracking(fetch);
+
+  // Habilita o bloqueio na sessão do Electron
+  await blocker.enableBlockingInSession(session);
 }
 
-module.exports = { setupAdblocker };
+function injectAdblockerCosmetics(webContents) {
+  webContents.insertCSS(adblockCosmeticCSS).catch(() => {
+    // Ignora falha de injeção de CSS em páginas não compatíveis
+  });
+
+  webContents.executeJavaScript(`
+    (function() {
+      function hideAdElements() {
+        const selectors = [
+          '.video-ads',
+          '.ytp-ad-module',
+          '.ytp-ad-player-overlay',
+          '.ytp-ad-overlay-slot',
+          '.ytp-ad-text-overlay',
+          '.ytp-ad-preview',
+          '.ytp-ad-player-overlay-instream-info',
+          '.ytp-ad-button',
+          '.ytp-ad-overlay-close-button',
+          '.ytp-ad-overlay-container',
+          '.ytp-ad-progress-list',
+          '.ytp-paid-content-badge',
+          '.ytp-ce-element',
+          '#player-ads',
+          '.ytp-ad-top-banner-slot',
+          '.ytp-ad-endcap',
+          '.adblock-message',
+          '.adblock-overlay',
+          '.adblocker-detection',
+          '.ytp-error-content',
+          '.ytp-adblock-message',
+          '.ytp-adblock-overlay',
+          'tp-yt-paper-dialog.ytd-popup-container>:last-child',
+          'tp-yt-iron-overlay-backdrop[opened]',
+          'tp-yt-iron-overlay-backdrop.opened',
+          'tp-yt-iron-overlay-backdrop',
+          // 'tp-yt-paper-dialog.ytd-popup-container>:last-child',
+          '[id*="adblock"]',
+          '[class*="adblock"]',
+          '[class*="AdBlock"]',
+          '[class*="abp"]'
+        ];
+
+        selectors.forEach((selector) => {
+          try {
+            document.querySelectorAll(selector).forEach((node) => {
+              node.style.display = 'none';
+              node.style.visibility = 'hidden';
+              node.style.opacity = '0';
+              node.style.pointerEvents = 'none';
+            });
+          } catch (e) {
+            // Ignora seletores inválidos
+          }
+        });
+      }
+
+      // Bypass YouTube adblock detection
+      function bypassYouTubeAdblock() {
+        // Override ytInitialPlayerResponse to fake ad availability
+        if (window.ytInitialPlayerResponse) {
+          if (window.ytInitialPlayerResponse.adPlacements) {
+            window.ytInitialPlayerResponse.adPlacements = [];
+          }
+          if (window.ytInitialPlayerResponse.playerAds) {
+            window.ytInitialPlayerResponse.playerAds = [];
+          }
+        }
+
+        // Fake ad-related functions
+        if (!window.google) window.google = {};
+        if (!window.google.ima) window.google.ima = {};
+        if (!window.google.ima.Ad) {
+          window.google.ima.Ad = function() {};
+        }
+        if (!window.google.ima.AdDisplayContainer) {
+          window.google.ima.AdDisplayContainer = function() {};
+        }
+
+        // Override ad detection variables
+        Object.defineProperty(window, 'ytplayer', {
+          get: function() {
+            return {
+              config: {
+                args: {
+                  ads: '0',
+                  ad_preroll: '0',
+                  ad_postroll: '0'
+                }
+              }
+            };
+          },
+          set: function() {}
+        });
+
+        // Hide adblock detection messages
+        const style = document.createElement('style');
+        style.textContent = \`
+          .ytp-error-content,
+          .ytp-adblock-message,
+          .ytp-adblock-overlay,
+          tp-yt-paper-dialog.ytd-popup-container>:last-child,
+          tp-yt-iron-overlay-backdrop[opened],
+          [class*="adblock"],
+          [id*="adblock"] {
+            display: none !important;
+          }
+        \`;
+        if (!document.head.querySelector('.adblock-bypass-style')) {
+          style.className = 'adblock-bypass-style';
+          document.head.appendChild(style);
+        }
+      }
+
+      // Run bypass immediately
+      bypassYouTubeAdblock();
+
+      function removeBlockingBackdrops() {
+        document.querySelectorAll('tp-yt-iron-overlay-backdrop[opened], tp-yt-iron-overlay-backdrop.opened, tp-yt-iron-overlay-backdrop, tp-yt-paper-dialog.ytd-popup-container>:last-child').forEach((node) => {
+          node.style.display = 'none';
+          node.style.visibility = 'hidden';
+          node.style.pointerEvents = 'none';
+          node.removeAttribute('opened');
+        });
+        document.documentElement.style.overflow = 'auto';
+        document.body.style.overflow = 'auto';
+      }
+
+      // Run overlay cleanup immediately
+      removeBlockingBackdrops();
+
+      // Force autoplay only on normal YouTube watch pages, not shorts
+      function isShortsPage() {
+        return window.location.pathname.startsWith('/shorts/') || window.location.pathname.includes('/shorts');
+      }
+let ispause = false
+      function forceAutoplay() {
+        if (isShortsPage() || ispause) {
+          return;
+        }
+
+        const video = document.querySelector('.video-stream.html5-main-video');
+        if (video && video.paused) {
+          video.play().catch(() => {
+            // Ignore play errors (user interaction required, etc.)
+          });
+        }
+      }
+
+      // // Watch for video changes and force autoplay on non-shorts pages
+      // const videoObserver = new MutationObserver(() => {
+      //   forceAutoplay();
+      //   removeBlockingBackdrops();
+      // });
+      // videoObserver.observe(document.body, { childList: true, subtree: true });
+
+
+document.addEventListener('keydown', (event) => {
+  if (event.key.toLowerCase() === 'k') {
+    console.log('Tecla K pressionada');
+    ispause =!ispause
+  }
+      if (event.key.toLowerCase() === ' ') {
+    console.log('Tecla K pressionada');
+    ispause =!ispause
+  }
+});
+
+      // Also check periodically, but skip shorts
+      setInterval(() => {
+        forceAutoplay();
+        removeBlockingBackdrops();
+      }, 3000);
+    })();
+  `).catch(() => {
+    // Ignora páginas fechadas ou contextos onde JS não pode ser executado
+  });
+}
+
+module.exports = { setupAdblocker, injectAdblockerCosmetics };

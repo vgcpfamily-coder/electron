@@ -38,6 +38,14 @@ function createMenu() {
           click: (_, win) => {
             win?.webContents.reloadIgnoringCache();
           }
+        },
+        { type: 'separator' },
+        {
+          label: 'Limpar Cache',
+          accelerator: 'Ctrl+Shift+C',
+          click: (_, win) => {
+            win?.webContents.session.clearCache();
+          }
         }
       ]
     },
