@@ -22,6 +22,7 @@ async function createWindow(url, locale = 'pt-BR') {
       contextIsolation: true,
       nodeIntegration: false,
       partition: PARTITION,
+      backgroundThrottling: false,
     },
   });
 

@@ -1,1 +1,1 @@
-# electron
+e um projeto em electron que implenta uma interface web mais leve que a maioria dos navegadores convencionais, utiliza mais gpu menos ram e cpu, adblock imbutido especialmente para o youtube, traducao de paginas nativas do cromium entre outras funcionalidades como atalhos um menu com funcionalidades basicas

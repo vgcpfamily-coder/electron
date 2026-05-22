@@ -25,7 +25,6 @@ const adblockCosmeticCSS = `
   .adblock-message,
   .adblock-overlay,
   .adblocker-detection,
-  .ytp-error-content,
   .ytp-adblock-message,
   .ytp-adblock-overlay,
   tp-yt-paper-dialog.ytd-popup-container>:last-child,
@@ -130,20 +129,20 @@ function injectAdblockerCosmetics(webContents) {
         }
 
         // Override ad detection variables
-        Object.defineProperty(window, 'ytplayer', {
-          get: function() {
-            return {
-              config: {
-                args: {
-                  ads: '0',
-                  ad_preroll: '0',
-                  ad_postroll: '0'
-                }
-              }
-            };
-          },
-          set: function() {}
-        });
+        // Object.defineProperty(window, 'ytplayer', {
+        //   get: function() {
+        //     return {
+        //       config: {
+        //         args: {
+        //           ads: '0',
+        //           ad_preroll: '0',
+        //           ad_postroll: '0'
+        //         }
+        //       }
+        //     };
+        //   },
+        //   set: function() {}
+        // });
 
         // Hide adblock detection messages
         const style = document.createElement('style');
