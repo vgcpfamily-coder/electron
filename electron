@@ -6,4 +6,4 @@ fi
 cd "$PROJECT_DIR" || exit 1
 export URL="$1"
 echo "$URL"
-npm start "$1"
+npm start "$1" --unhandled-rejections=strict

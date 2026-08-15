@@ -1,8 +1,23 @@
-const { Menu } = require('electron');
+const { app, Menu } = require('electron');
+const { createWindow } = require('./window');
 const { setTheme, getTheme } = require('./theme');
+const { goBack, goForward } = require('./utils');
 
 function createMenu() {
   const template = [
+    {
+      label: 'Janela',
+      submenu: [
+        {
+          label: 'Nova janela',
+          accelerator: 'CommandOrControl+N',
+          click: async (_, win) => {
+            const url = win?.webContents.getURL() || 'https://www.youtube.com';
+            await createWindow(url, app.getLocale());
+          }
+        }
+      ]
+    },
     {
       label: 'NAV',
       submenu: [
@@ -10,18 +25,14 @@ function createMenu() {
           label: 'Voltar',
           accelerator: 'Alt+Left',
           click: (_, win) => {
-            if (win?.webContents.canGoBack()) {
-              win.webContents.goBack();
-            }
+            goBack(win?.webContents);
           }
         },
         {
           label: 'Avançar',
           accelerator: 'Alt+Right',
           click: (_, win) => {
-            if (win?.webContents.canGoForward()) {
-              win.webContents.goForward();
-            }
+            goForward(win?.webContents);
           }
         },
         { type: 'separator' },

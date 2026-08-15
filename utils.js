@@ -12,4 +12,34 @@ function getUrl(argv) {
   return arg;
 }
 
-module.exports = { getUrl };
+function goBack(webContents) {
+  const history = webContents?.navigationHistory;
+
+  if (history) {
+    if (history.canGoBack()) {
+      history.goBack();
+    }
+    return;
+  }
+
+  if (webContents?.canGoBack?.()) {
+    webContents.goBack();
+  }
+}
+
+function goForward(webContents) {
+  const history = webContents?.navigationHistory;
+
+  if (history) {
+    if (history.canGoForward()) {
+      history.goForward();
+    }
+    return;
+  }
+
+  if (webContents?.canGoForward?.()) {
+    webContents.goForward();
+  }
+}
+
+module.exports = { getUrl, goBack, goForward };

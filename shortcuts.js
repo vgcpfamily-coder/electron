@@ -1,18 +1,15 @@
 const { globalShortcut, BrowserWindow } = require('electron');
+const { goBack, goForward } = require('./utils');
 
 function registerShortcuts() {
   globalShortcut.register('Control+Shift+A', () => {
     const win = BrowserWindow.getFocusedWindow();
-    if (win?.webContents.canGoBack()) {
-      win.webContents.goBack();
-    }
+    goBack(win?.webContents);
   });
 
   globalShortcut.register('Control+Shift+D', () => {
     const win = BrowserWindow.getFocusedWindow();
-    if (win?.webContents.canGoForward()) {
-      win.webContents.goForward();
-    }
+    goForward(win?.webContents);
   });
 }
 

@@ -6,7 +6,7 @@ const { app, ipcMain } = require('electron');
 
 const adblockCosmeticCSS = `
   /* YouTube ad and ad-block detection overlay hiding */
-  .video-ads,
+  // .video-ads,
   .ytp-ad-module,
   .ytp-ad-player-overlay,
   .ytp-ad-overlay-slot,
@@ -46,8 +46,10 @@ async function setupAdblocker(session) {
   // Inicializa o bloqueador com listas de anúncios e rastreamento pré-construídas
   const blocker = await ElectronBlocker.fromPrebuiltAdsAndTracking(fetch);
 
-  // Habilita o bloqueio na sessão do Electron
+  // // Habilita o bloqueio na sessão do Electron
   await blocker.enableBlockingInSession(session);
+
+  console.log("adblocking....")
 }
 
 function injectAdblockerCosmetics(webContents) {
@@ -78,7 +80,7 @@ function injectAdblockerCosmetics(webContents) {
           '.adblock-message',
           '.adblock-overlay',
           '.adblocker-detection',
-          '.ytp-error-content',
+         // '.ytp-error-content',
           '.ytp-adblock-message',
           '.ytp-adblock-overlay',
           'tp-yt-paper-dialog.ytd-popup-container>:last-child',
@@ -223,6 +225,7 @@ document.addEventListener('keydown', (event) => {
         removeBlockingBackdrops();
       }, 3000);
     })();
+    console.log("adblock g4b3r injected java")
   `).catch(() => {
     // Ignora páginas fechadas ou contextos onde JS não pode ser executado
   });

@@ -46,31 +46,36 @@ function injectDarkMode(webContents) {
     }
   `;
 
-  webContents.executeJavaScript(`
-    (function() {
-      // Forçar prefers-color-scheme para dark
-      if (window.matchMedia) {
-        const darkMode = window.matchMedia('(prefers-color-scheme: dark)');
-        if (darkMode.media !== 'not all' && !darkMode.matches) {
-          // Alguns sites usam JS para detectar preferência
-          Object.defineProperty(window.matchMedia('(prefers-color-scheme: dark)'), 'matches', {
-            value: true
-          });
-        }
-      }
+//   webContents.executeJavaScript(`
+//     (function() {
+//       // Forçar prefers-color-scheme para dark
+//       if (window.matchMedia) {
+//         const darkMode = window.matchMedia('(prefers-color-scheme: dark)');
+//         if (darkMode.media !== 'not all' && !darkMode.matches) {
+//           // Alguns sites usam JS para detectar preferência
+//           Object.defineProperty(window.matchMedia('(prefers-color-scheme: dark)'), 'matches', {
+//             value: true
+//           });
+//         }
+//       }
       
-      // Injetar CSS de dark mode
-      const style = document.createElement('style');
-      style.textContent = \`${darkModeCSS}\`;
-      document.head.appendChild(style);
+//       // Injetar CSS de dark mode
+//       if (!document.getElementById('electron-dark-mode-style')) {
+//         const style = document.createElement('style');
+//         style.id = 'electron-dark-mode-style';
+//         style.textContent = \`${darkModeCSS}\`;
+//         document.head.appendChild(style);
+//       }
       
-      // Tentar remover temas claros inline
-      document.querySelectorAll('[style*="background-color: white"], [style*="background: white"]').forEach(el => {
-        el.style.backgroundColor = '#1e1e1e';
-        el.style.color = '#e0e0e0';
-      });
-    })();
-  `);
-}
+//       // Tentar remover temas claros inline
+//       document.querySelectorAll('[style*="background-color: white"], [style*="background: white"]').forEach(el => {
+//         el.style.backgroundColor = '#1e1e1e';
+//         el.style.color = '#e0e0e0';
+//       });
+//     })();
+//   `).catch(() => {
+//     // Ignora páginas fechadas ou contextos onde JS não pode ser executado.
+//   });
+ }
 
 module.exports = { setTheme, getTheme, injectDarkMode };
